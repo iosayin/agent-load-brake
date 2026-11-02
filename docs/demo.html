@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>agent-load-brake demo</title>
+<!-- Rendered from a real run of docs/record-demo.sh: hook log lines and the script's own events, unedited except for
+     dropped fields (pid, agent count, disk, pressure, free swap). -->
+<style>
+body{margin:0;background:#0d1117;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#c9d1d9}
+.w{width:720px;box-sizing:border-box;padding:0 0 14px}
+.bar{background:#161b22;padding:9px 12px;display:flex;gap:7px;align-items:center;border-bottom:1px solid #21262d}
+.d{width:11px;height:11px;border-radius:50%}.t{color:#8b949e;margin-left:8px;font-size:12px}
+pre{margin:0;padding:12px 16px;white-space:pre-wrap}
+.g{color:#7ee787}.y{color:#e3b341}.b{color:#79c0ff}.m{color:#8b949e}.r{color:#ff7b72}
+</style></head><body><div class="w">
+<div class="bar"><span class="d" style="background:#ff5f57"></span><span class="d" style="background:#febc2e"></span><span class="d" style="background:#28c840"></span><span class="t">agent-load-brake demo: real run on a Linux VM (demo threshold: heavy at load &gt; cores)</span></div>
+<pre><span data-s="1"><span class="m">21:31:06</span> <span class="">machine: 8 cores, demo thresholds: heavy at load &gt; 8, moderate at load &gt; 6</span>
+</span><span data-s="2"><span class="m">21:31:09</span> <span class="b">status: load=0.2 mem_free=97% swap_out=0.0MB/s ceiling=8</span>
+</span><span data-s="3"><span class="m">21:31:13</span> <span class="g">agent-2: session started (hook exit 0)</span>
+</span><span data-s="4"><span class="m">21:31:13</span> <span class="g">agent-1: session started (hook exit 0)</span>
+</span><span data-s="5"><span class="m">21:31:13</span> <span class="">load generator: 16 busy processes</span>
+</span><span data-s="6"><span class="m">21:31:18 <span data-s="6">load 1.4</span><span data-s="7"> · 3.8</span><span data-s="8"> · 5.7</span><span data-s="9"> · 6.5</span><span data-s="10"> · 8.0</span><span data-s="11"> · 9.4</span></span>
+</span><span data-s="12"><span class="m">21:32:06</span> <span class="b">status: load=9.4 mem_free=97% swap_out=0.0MB/s <span class="r">ceiling=0</span> <span class="r">heavy=load</span></span>
+</span><span data-s="13"><span class="m">21:32:10</span> <span class="y">waiting (heavy running=2/0 queued=1) load=9.9 mem_free=97% swap_out=0.0MB/s <span class="r">ceiling=0</span> <span class="r">heavy=load</span></span>
+</span><span data-s="14"><span class="m">21:32:10</span> <span class="y">waiting (heavy running=2/0 queued=1) load=9.9 mem_free=97% swap_out=0.0MB/s <span class="r">ceiling=0</span> <span class="r">heavy=load</span></span>
+</span><span data-s="15"><span class="m">21:32:28</span> <span class="">load generator stopped</span>
+</span><span data-s="16"><span class="m">21:32:33 <span data-s="16">load 10.8</span><span data-s="17"> · 9.9</span><span data-s="18"> · 9.1</span><span data-s="19"> · 8.4</span><span data-s="20"> · 7.7</span></span>
+</span><span data-s="21"><span class="m">21:32:56</span> <span class="g">agent-4: session started (hook exit 0)</span>
+</span><span data-s="22"><span class="m">21:32:56</span> <span class="g">agent-3: session started (hook exit 0)</span>
+</span><span data-s="23"><span class="m">21:32:56</span> <span class="g">passed after 44s running=3/4 queued=1 load=7.7 mem_free=97% swap_out=0.0MB/s ceiling=4</span>
+</span><span data-s="24"><span class="m">21:32:56</span> <span class="g">passed after 46s running=4/4 queued=0 load=7.7 mem_free=97% swap_out=0.0MB/s ceiling=4</span>
+</span><span data-s="25"><span class="m">21:32:59 <span data-s="25">load 7.1</span></span>
+</span><span data-s="26"><span class="m">21:33:02</span> <span class="b">status: load=7.1 mem_free=97% swap_out=0.0MB/s ceiling=4</span>
+</span></pre></div>
+<script>const st=+(new URLSearchParams(location.search).get("step")||9999);document.querySelectorAll("[data-s]").forEach(e=>{if(+e.dataset.s>st)e.style.display="none"});</script></body></html>

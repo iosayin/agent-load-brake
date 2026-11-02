@@ -9,6 +9,7 @@ Run enough headless agents in parallel (`claude --print` from an orchestrator, a
 `agent-load-brake` is a Claude Code **SessionStart hook**. Before a headless session makes its first model call, the hook checks the machine and, if there is no room, **queues the session** until there is. First come, first served. Your own interactive sessions are never touched.
 
 <p align="center"><img src="https://raw.githubusercontent.com/iosayin/agent-load-brake/main/docs/demo.gif" width="720" alt="agent-load-brake log: sessions queued while the load is high, then let through in order when it falls"></p>
+<p align="center"><sub>A real run on an 8-core Linux VM: two agents start, a load generator pushes the load past the demo threshold, two more agents are queued, and both are let through once the load falls (<a href="docs/screenshot.png">full screenshot</a>).</sub></p>
 
 - 🧯 **Queues instead of piling on.** A dynamic ceiling on concurrent headless sessions: 8 normally, 4 under moderate load, 0 when the machine is heavy.
 - 🚦 **Never "gives up and lets it through".** A long wait does not open the gate. After the maximum wait the session is stopped *before any model call* so your orchestrator can retry it later, and it keeps its place in the queue.
@@ -56,11 +57,11 @@ Every new headless session runs the hook. Under a file lock it measures the mach
 
 What counts as an agent session: a process whose command line has a `claude` executable followed by `--print` or `-p`. Interactive sessions (the terminal UI, the desktop app, IDE extensions) do not match: they are never counted and never delayed. Set `match` to also require a substring (for example your orchestrator's working directory) when other headless jobs share the machine.
 
-Every decision that involves waiting goes to the log:
+Every decision that involves waiting goes to the log (these two lines are from the demo run on an 8-core Linux VM, with the demo thresholds of [`docs/record-demo.sh`](docs/record-demo.sh)):
 
 ```text
-2026-11-02 03:12:07 waiting (heavy running=2/0 queued=0) agents=3 load=21.4 mem_free=38% pressure=1 swap_out=0.0MB/s disk_free=212GB swap_free=1481MB ceiling=0 heavy=load pid=48211
-2026-11-02 03:13:52 passed after 105s running=3/4 queued=1 agents=4 load=14.2 mem_free=40% pressure=1 swap_out=0.0MB/s disk_free=212GB swap_free=1481MB ceiling=4 pid=48211
+2026-11-02 21:32:10 waiting (heavy running=2/0 queued=1) agents=4 load=9.9 mem_free=97% pressure=1 swap_out=0.0MB/s disk_free=77GB swap_free=0MB ceiling=0 heavy=load pid=134342
+2026-11-02 21:32:56 passed after 46s running=4/4 queued=0 agents=4 load=7.7 mem_free=97% pressure=1 swap_out=0.0MB/s disk_free=77GB swap_free=0MB ceiling=4 pid=134342
 ```
 
 ## Configuration

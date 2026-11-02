@@ -1,0 +1,9 @@
+{
+  "max_agents": 6,
+  "mid_max_agents": 3,
+  "heavy_load_per_core": 2.0,
+  "min_free_mem_pct": 15,
+  "min_free_disk_gb": 20,
+  "max_wait_seconds": 1380,
+  "match": "/my-orchestrator/"
+}

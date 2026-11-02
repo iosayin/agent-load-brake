@@ -1,0 +1,50 @@
+{
+  "name": "agent-load-brake",
+  "version": "0.1.0",
+  "description": "Claude Code hook that queues headless agent sessions while your machine is overloaded (load, memory pressure, swap, disk). Keeps a parallel agent fleet from freezing the box.",
+  "type": "module",
+  "bin": {
+    "agent-load-brake": "bin/cli.mjs"
+  },
+  "scripts": {
+    "check": "node --check bin/cli.mjs && node --check src/settings.mjs && python3 -m py_compile hook/agent-load-brake.py",
+    "test": "node --test test/install.test.mjs && bash test/brake.test.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "keywords": [
+    "claude-code",
+    "claude-code-hooks",
+    "ai-agents",
+    "agent-orchestration",
+    "load-shedding",
+    "backpressure",
+    "macos",
+    "linux",
+    "devops"
+  ],
+  "license": "MIT",
+  "author": "iosayin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iosayin/agent-load-brake.git"
+  },
+  "homepage": "https://github.com/iosayin/agent-load-brake#readme",
+  "bugs": {
+    "url": "https://github.com/iosayin/agent-load-brake/issues"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "hook/",
+    "examples/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ]
+}

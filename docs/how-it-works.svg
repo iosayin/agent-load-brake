@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12">
+  <!-- Decision flow of agent-load-brake. Palette matches docs/demo.html. -->
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8b949e"/>
+    </marker>
+  </defs>
+  <rect width="720" height="400" fill="#0d1117"/>
+  <rect width="720" height="30" fill="#161b22"/>
+  <circle cx="18" cy="15" r="5.5" fill="#ff5f57"/><circle cx="36" cy="15" r="5.5" fill="#febc2e"/><circle cx="54" cy="15" r="5.5" fill="#28c840"/>
+  <text x="74" y="19" fill="#8b949e">agent-load-brake: how a session start is decided</text>
+  <g fill="none" stroke="#30363d" stroke-width="1.2">
+    <rect x="20" y="52" width="160" height="56" rx="6"/>
+    <rect x="215" y="52" width="230" height="140" rx="6"/>
+    <rect x="480" y="52" width="220" height="140" rx="6"/>
+    <rect x="215" y="232" width="230" height="64" rx="6"/>
+    <rect x="480" y="232" width="100" height="64" rx="6" stroke="#7ee787"/>
+    <rect x="600" y="232" width="100" height="64" rx="6" stroke="#e3b341"/>
+    <rect x="20" y="322" width="680" height="58" rx="6"/>
+  </g>
+  <text x="34" y="76" fill="#c9d1d9">claude --print</text>
+  <text x="34" y="96" fill="#8b949e">SessionStart hook</text>
+  <text x="229" y="74" fill="#79c0ff">1. measure (shared, locked)</text>
+  <text x="229" y="96" fill="#c9d1d9">load average / cores</text>
+  <text x="229" y="114" fill="#c9d1d9">free memory, pressure</text>
+  <text x="229" y="132" fill="#c9d1d9">swap-out MB/s</text>
+  <text x="229" y="150" fill="#c9d1d9">free disk</text>
+  <text x="229" y="176" fill="#8b949e">unreadable = ignored</text>
+  <text x="494" y="74" fill="#79c0ff">2. effective ceiling</text>
+  <text x="494" y="100" fill="#ff7b72">heavy</text><text x="584" y="100" fill="#c9d1d9">0</text>
+  <text x="494" y="122" fill="#e3b341">moderate</text><text x="584" y="122" fill="#c9d1d9">4</text>
+  <text x="494" y="144" fill="#7ee787">normal</text><text x="584" y="144" fill="#c9d1d9">8</text>
+  <text x="494" y="176" fill="#8b949e">configurable</text>
+  <text x="229" y="256" fill="#79c0ff">3. running + ahead in queue</text>
+  <text x="229" y="276" fill="#c9d1d9">&lt; ceiling ?</text>
+  <text x="229" y="290" fill="#8b949e" font-size="11">(none running: head may start)</text>
+  <text x="494" y="260" fill="#7ee787">yes: pass</text>
+  <text x="494" y="282" fill="#8b949e" font-size="11">session runs</text>
+  <text x="614" y="260" fill="#e3b341">no: wait</text>
+  <text x="614" y="282" fill="#8b949e" font-size="11">every 15 s</text>
+  <text x="34" y="344" fill="#c9d1d9">waited max_wait_seconds (1380 s)?  stop the session before any model call (SIGTERM, exit 2),</text>
+  <text x="34" y="364" fill="#c9d1d9">keep the queue ticket; the orchestrator retries.    kill switch file present?  always pass.</text>
+  <g stroke="#8b949e" stroke-width="1.2" fill="none" marker-end="url(#a)">
+    <path d="M180 80H213"/>
+    <path d="M445 122H478"/>
+    <path d="M590 192V210H330V230"/>
+    <path d="M445 264H478"/>
+    <path d="M650 296V312"/>
+  </g>
+</svg>

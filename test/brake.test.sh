@@ -13,6 +13,8 @@
 #   Round 6: default ceiling 8 -> the 9th waits; load 1.6 x cores -> ceiling 4.
 #   Round 7: kill switch file -> passes without waiting even when heavy.
 #   Round 8: Linux metrics from a fake /proc (meminfo, PSI, vmstat), the JSON config file and --status.
+#   Round 9: state directory safety - a group/other-writable or symlinked state_dir is refused (the session passes, a
+#            planted lock symlink is never followed); new directories are 0700; the default is per-user, never /tmp.
 #   Every decision is read from the hook's exit code (0 passed, 2 terminated).
 # Usage: bash test/brake.test.sh   (exit 0 = every assertion held). Polls for events instead of fixed sleeps.
 set -uo pipefail
@@ -246,6 +248,37 @@ printf '  status: %s\n' "${out//$'\n'/$'\n'  status: }"
 check "--status prints HEAVY, heavy=memory and the agent count without waiting" \
   'grep -q "agent-load-brake: HEAVY" <<<"$out" && grep -q "heavy=memory" <<<"$out" && grep -q "agents=3 " <<<"$out"'
 finish S1 S2 S3
+
+echo "-- Round 9: state directory safety (no agents running; MAX_AGENTS=0 would hold every session)"
+printf 'precious\n' > "$T/victim"
+mkdir -m 0777 "$T/shared"; chmod 0777 "$T/shared"; ln -s "$T/victim" "$T/shared/lock"; mkdir -m 0777 "$T/shared/waiting"
+: > "$T/brake.log"
+k=$(once AGENT_LOAD_BRAKE_STATE_DIR="$T/shared" AGENT_LOAD_BRAKE_MAX_AGENTS=0 AGENT_LOAD_BRAKE_MAX_WAIT_SECONDS=2)
+check "group/other-writable state_dir with a planted lock symlink: passed (hook $k = 0), victim untouched, logged" \
+  '[[ $k == 0 ]] && [[ $(cat "$T/victim") == precious ]] && grep -q "unsafe state_dir.*mode 777" "$T/brake.log"'
+mkdir -m 0700 "$T/real"; ln -s "$T/real" "$T/linked"
+: > "$T/brake.log"
+k=$(once AGENT_LOAD_BRAKE_STATE_DIR="$T/linked" AGENT_LOAD_BRAKE_MAX_AGENTS=0 AGENT_LOAD_BRAKE_MAX_WAIT_SECONDS=2)
+check "state_dir that is a symlink: refused, passed (hook $k = 0)" \
+  '[[ $k == 0 ]] && grep -q "unsafe state_dir.*symlink" "$T/brake.log" && [[ -z $(ls "$T/real") ]]'
+mkdir -m 0700 "$T/own"; mkdir -m 0700 "$T/own/waiting"; ln -s "$T/victim" "$T/own/lock"
+: > "$T/brake.log"
+k=$(once AGENT_LOAD_BRAKE_STATE_DIR="$T/own" AGENT_LOAD_BRAKE_MAX_AGENTS=0 AGENT_LOAD_BRAKE_MAX_WAIT_SECONDS=2)
+check "lock symlink inside a private state_dir: not followed (victim untouched), passed (hook $k = 0)" \
+  '[[ $k == 0 ]] && [[ $(cat "$T/victim") == precious ]] && grep -q "error, passing" "$T/brake.log"'
+k=$(once AGENT_LOAD_BRAKE_STATE_DIR="$T/fresh/state" AGENT_LOAD_BRAKE_MAX_AGENTS=0 AGENT_LOAD_BRAKE_MAX_WAIT_SECONDS=1)
+mode=$($PY -c 'import os,stat,sys; print(oct(stat.S_IMODE(os.lstat(sys.argv[1]).st_mode)))' "$T/fresh/state")
+check "positive pair: a new state_dir is created 0700 and the brake still holds (hook $k = 2, mode $mode)" \
+  '[[ $k == 2 && $mode == 0o700 ]]'
+out=$(env -u AGENT_LOAD_BRAKE_STATE_DIR -u XDG_RUNTIME_DIR HOME="$T/home" "$PY" "$HOOK" --status)
+check "default state_dir without XDG_RUNTIME_DIR is ~/.local/state/agent-load-brake/run (0700), not /tmp" \
+  '[[ -d "$T/home/.local/state/agent-load-brake/run" ]] && [[ $($PY -c "import os,stat,sys; print(oct(stat.S_IMODE(os.lstat(sys.argv[1]).st_mode)))" "$T/home/.local/state/agent-load-brake/run") == 0o700 ]]'
+mkdir -m 0700 "$T/xdg"
+out=$(env -u AGENT_LOAD_BRAKE_STATE_DIR XDG_RUNTIME_DIR="$T/xdg" HOME="$T/home2" "$PY" "$HOOK" --status)
+check "default state_dir with XDG_RUNTIME_DIR is \$XDG_RUNTIME_DIR/agent-load-brake" '[[ -d "$T/xdg/agent-load-brake/waiting" ]]'
+chmod 0755 "$T/own"
+out=$(AGENT_LOAD_BRAKE_STATE_DIR="$T/own" $PY "$HOOK" --status); rc=$?
+check "--status reports an unsafe state_dir (exit $rc = 1)" '[[ $rc == 1 ]] && grep -q "unsafe state_dir" <<<"$out"'
 
 echo "$count assertions, $([[ $fail == 0 ]] && echo "all passed" || echo "some FAILED")"
 exit $fail

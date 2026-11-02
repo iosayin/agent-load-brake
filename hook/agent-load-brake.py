@@ -42,11 +42,17 @@ import random
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
 
 HOME = os.path.expanduser("~")
+_RUNTIME = os.environ.get("XDG_RUNTIME_DIR", "")
+# Per-user, never a shared world-writable directory: the lock and markers live here, and the hook refuses any directory
+# that is not a real directory owned by this user with no group/other access (see secure_dir).
+DEFAULT_STATE_DIR = (os.path.join(_RUNTIME, "agent-load-brake") if _RUNTIME and os.path.isabs(_RUNTIME) and os.path.isdir(_RUNTIME)
+                     else os.path.join(HOME, ".local/state/agent-load-brake/run"))
 DEFAULTS = {
     "max_agents": 8,
     "mid_max_agents": 4,
@@ -66,7 +72,7 @@ DEFAULTS = {
     "ticket_ttl_seconds": 6 * 3600,
     "ticket_env": "PAPERCLIP_TASK_ID,PAPERCLIP_AGENT_ID",
     "match": "",
-    "state_dir": f"/tmp/agent-load-brake-{os.getuid()}",
+    "state_dir": DEFAULT_STATE_DIR,
     "log_file": os.path.join(HOME, ".local/state/agent-load-brake/brake.log"),
     "kill_switch": os.path.join(HOME, ".config/agent-load-brake/disabled"),
     "sysctl": "/usr/sbin/sysctl",   # absolute paths: hooks may run without PATH; overridable for tests
@@ -233,7 +239,7 @@ def measure():
         pass
     o = raw_measure()
     try:
-        with open(path + ".new", "w") as f:
+        with open_new(path + ".new") as f:
             f.write(" ".join(f"{k}={'?' if o[k] is None else o[k]}" for k in FIELDS))
         os.replace(path + ".new", path)
     except OSError:
@@ -248,6 +254,32 @@ def summary(o, ceiling, heavy):
     return (f"load={f('load', '{:.1f}')} mem_free={f('mem_free', '{:.0f}%')} pressure={f('pressure', '{:.0f}')} "
             f"swap_out={f('swap_out', '{:.1f}')}MB/s disk_free={f('disk_free', '{:.0f}')}GB "
             f"swap_free={f('swap_free', '{:.0f}MB')} ceiling={ceiling}" + (f" heavy={','.join(heavy)}" if heavy else ""))
+
+
+class UnsafeStateDir(Exception):
+    pass
+
+
+def secure_dir(path):
+    """Create path (0700) if missing, then refuse it unless it is a real directory (not a symlink) owned by this user
+    with no group/other permissions. Another local user must not be able to plant symlinks where the hook writes."""
+    try:
+        os.makedirs(path, mode=0o700, exist_ok=True)
+        st = os.lstat(path)
+    except OSError as e:
+        raise UnsafeStateDir(f"{path}: {e}")
+    if not stat.S_ISDIR(st.st_mode):
+        raise UnsafeStateDir(f"{path} is not a directory (or is a symlink)")
+    if st.st_uid != os.getuid():
+        raise UnsafeStateDir(f"{path} is owned by uid {st.st_uid}, not {os.getuid()}")
+    if st.st_mode & 0o077:
+        raise UnsafeStateDir(f"{path} has mode {stat.S_IMODE(st.st_mode):o}, expected no group/other access (700)")
+
+
+def open_new(path, mode="w"):
+    """open() for writing that never follows a symlink at the final path component."""
+    flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | (os.O_APPEND if mode == "a" else os.O_TRUNC)
+    return os.fdopen(os.open(path, flags, 0o600), mode)
 
 
 def log(line):
@@ -311,7 +343,7 @@ def take_ticket():
     if path is None:
         return now, False
     folder = os.path.dirname(path)
-    os.makedirs(folder, exist_ok=True)
+    secure_dir(folder)
     for name in os.listdir(folder):   # expired tickets (the task ended some other way)
         try:
             if now - os.stat(os.path.join(folder, name)).st_mtime > C["ticket_ttl_seconds"]:
@@ -321,7 +353,7 @@ def take_ticket():
     try:
         return os.stat(path).st_mtime, True
     except FileNotFoundError:
-        open(path, "w").close()
+        open_new(path).close()
         os.utime(path, (now, now))
         return now, False
 
@@ -344,7 +376,7 @@ def remove(path):
 
 def attempt(me):
     """Under the lock: measure, count, decide. Returns (passed, running, queued, ceiling, heavy, measurement, agents)."""
-    with open(os.path.join(C["state_dir"], "lock"), "w") as lk:
+    with open_new(os.path.join(C["state_dir"], "lock")) as lk:
         fcntl.flock(lk, fcntl.LOCK_EX)
         o = measure()
         ceiling, heavy = classify(o)
@@ -404,9 +436,14 @@ def main():
     me = owner_pid(table)
     if not is_agent(table.get(me, (0, ""))[1]):
         return 0   # not a headless agent session (an interactive session, a manual run): never wait
-    os.makedirs(os.path.join(C["state_dir"], "waiting"), exist_ok=True)
+    try:
+        secure_dir(C["state_dir"])
+        secure_dir(os.path.join(C["state_dir"], "waiting"))
+    except UnsafeStateDir as e:
+        log(f"unsafe state_dir, passing without queueing: {e} pid={me}")
+        return 0
     t, old = take_ticket()
-    open(marker(me), "w").close()   # counted as "waiting" right away; the decision is taken under the lock
+    open_new(marker(me)).close()   # counted as "waiting" right away; the decision is taken under the lock
     os.utime(marker(me), (t, t))
     try:
         return wait(me, old)
@@ -416,7 +453,12 @@ def main():
 
 
 def status():
-    os.makedirs(os.path.join(C["state_dir"], "waiting"), exist_ok=True)
+    try:
+        secure_dir(C["state_dir"])
+        secure_dir(os.path.join(C["state_dir"], "waiting"))
+    except UnsafeStateDir as e:
+        print(f"agent-load-brake: unsafe state_dir, the hook passes every session without queueing: {e}")
+        return 1
     o = raw_measure()
     ceiling, heavy = classify(o)
     agents = [p for p, (_, c) in processes().items() if is_agent(c)]

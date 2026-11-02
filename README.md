@@ -88,7 +88,7 @@ Every setting can be set as an environment variable `AGENT_LOAD_BRAKE_<NAME>` (u
 | `ticket_env` | `PAPERCLIP_TASK_ID,PAPERCLIP_AGENT_ID` | Comma-separated environment variables that identify a retried task (all must be set) |
 | `ticket_ttl_seconds` | `21600` | Tickets older than this are discarded |
 | `match` | *(empty)* | Extra substring an agent command line must contain to be counted and queued |
-| `state_dir` | `/tmp/agent-load-brake-<uid>` | Lock, shared measurement, queue markers, tickets |
+| `state_dir` | `$XDG_RUNTIME_DIR/agent-load-brake`, else `~/.local/state/agent-load-brake/run` | Lock, shared measurement, queue markers, tickets. Must be a real directory owned by you with mode `700` (created that way); otherwise the hook logs `unsafe state_dir` and lets every session through. Do not point it at a shared directory such as `/tmp` |
 | `log_file` | `~/.local/state/agent-load-brake/brake.log` | Log of waits, passes after a wait and stops |
 | `kill_switch` | `~/.config/agent-load-brake/disabled` | If this file exists the hook always passes |
 
@@ -97,6 +97,7 @@ The config file path itself can be moved with `AGENT_LOAD_BRAKE_CONFIG`.
 ## macOS and Linux notes
 
 - **macOS:** memory comes from `kern.memorystatus_level` (the same "memory available" figure Activity Monitor's pressure graph is built on) and pressure from `kern.memorystatus_vm_pressure_level` (1 normal, 2 warning, 4 critical; only critical brakes). Free swap is logged but not used: macOS grows swap files and rarely shrinks them, so "little free swap" is normal and says nothing about the current state. Disk is measured on the data volume.
+- **Shared machines:** all hook state lives in a per-user directory (`state_dir`). The hook refuses a state directory that is a symlink, belongs to another user or is readable/writable by group or others, and never follows a symlink when it creates its lock or marker files, so another local user cannot redirect its writes.
 - **Linux:** memory is `MemAvailable / MemTotal` from `/proc/meminfo`; pressure uses [PSI](https://docs.kernel.org/accounting/psi.html) (`/proc/pressure/memory`, kernel 4.20+). Without PSI the pressure signal is simply unreadable and ignored; the other signals still work. In a container, the values are those the container can see.
 - Tools are called with absolute paths (`/usr/sbin/sysctl`, `/usr/bin/vm_stat`) because hooks may run with a minimal `PATH`.
 - Windows is not supported.

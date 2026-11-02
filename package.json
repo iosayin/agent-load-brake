@@ -41,7 +41,7 @@
   "files": [
     "bin/",
     "src/",
-    "hook/",
+    "hook/agent-load-brake.py",
     "examples/",
     "README.md",
     "CHANGELOG.md",

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2016,SC2329  # assertions are evaluated lazily with eval (single quotes on purpose)
+# shellcheck disable=SC2016,SC2317,SC2329  # assertions are evaluated lazily with eval (single quotes on purpose)
 # End-to-end test of hook/agent-load-brake.py with fake `claude` processes. It never touches real sessions: its own MATCH
 # pattern, its own state/ticket/log directory and a fake measurement (independent of the machine's real load).
 #   Round 1: ceiling 2 -> A, B pass; C and then D wait; an interactive session (no --print) passes without waiting;
